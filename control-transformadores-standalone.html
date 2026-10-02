@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}img{max-width:100%}body{margin:0}</style>
+<title>Control de Transformadores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: operations console — summary strip on top, unit register on the left, nameplate-style record on the right */
+:root{
+  --bg:#ECEFEF; --surface:#FFFFFF; --surface-2:#F4F6F6; --ink:#16232A; --muted:#5A6A71; --line:#D3DADB;
+  --accent:#0D6662; --accent-soft:#DCEDEB; --accent-ink:#FFFFFF; --plate:#E3E8E6; --plate-edge:#B9C3C1;
+  --ok:#2E7A48; --ok-soft:#E0F0E5; --warn:#A86B12; --warn-soft:#FBEFD9; --crit:#B3372B; --crit-soft:#F8E1DE;
+  --none:#7F8D92; --none-soft:#E9EDEE;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1619; --surface:#162026; --surface-2:#1B272E; --ink:#E2E9EB; --muted:#93A3A9; --line:#2A3940;
+  --accent:#43B3A9; --accent-soft:#173533; --accent-ink:#04201D; --plate:#1F2C33; --plate-edge:#3A4B53;
+  --ok:#5DBE80; --ok-soft:#173023; --warn:#E3A94B; --warn-soft:#352812; --crit:#F07468; --crit-soft:#3A1C19;
+  --none:#83939A; --none-soft:#223037; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1619; --surface:#162026; --surface-2:#1B272E; --ink:#E2E9EB; --muted:#93A3A9; --line:#2A3940;
+  --accent:#43B3A9; --accent-soft:#173533; --accent-ink:#04201D; --plate:#1F2C33; --plate-edge:#3A4B53;
+  --ok:#5DBE80; --ok-soft:#173023; --warn:#E3A94B; --warn-soft:#352812; --crit:#F07468; --crit-soft:#3A1C19;
+  --none:#83939A; --none-soft:#223037; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;padding-inline:16px;padding-block:0 40px}
+.wrap{max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* top bar */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:20px 4px;border-bottom:1px solid var(--line);padding-bottom:14px}
+.brand .eyebrow{font-family:var(--f-display);font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:11.5px;color:var(--accent)}
+.brand h1{margin:2px 0 0;font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.1;letter-spacing:-.01em;text-wrap:balance}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:500;font-size:13.5px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--crit)}
+.btn.danger:hover{border-color:var(--crit)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn svg{width:15px;height:15px;flex:none}
+
+/* summary */
+.summary{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.panel h2{margin:0 0 10px;font-family:var(--f-display);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.kpis{display:flex;flex-wrap:wrap;gap:20px;align-items:baseline;margin-bottom:12px}
+.kpi b{display:block;font-family:var(--f-display);font-size:30px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+.stack{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--none-soft);gap:2px}
+.stack i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.legend button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:3px 10px 3px 8px;font-size:12.5px;cursor:pointer}
+.legend button[aria-pressed="true"]{border-color:var(--ink);background:var(--surface)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.bars{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:5px 10px;align-items:center;font-size:12.5px}
+.bars .lbl{color:var(--ink);white-space:nowrap;cursor:pointer;background:none;border:0;padding:0;text-align:left}
+.bars .lbl:hover{color:var(--accent);text-decoration:underline}
+.bars .track{height:9px;background:var(--surface-2);border-radius:2px;overflow:hidden;display:flex}
+.bars .track i{display:block;height:100%}
+.bars .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
+
+/* main */
+.main{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:16px;align-items:start}
+.list{display:flex;flex-direction:column;max-height:calc(100vh - 40px);position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);padding:0;overflow:hidden}
+.filters{display:flex;flex-direction:column;gap:8px;padding:12px;border-bottom:1px solid var(--line)}
+.filters .row{display:flex;gap:8px}
+.filters .row > *{flex:1;min-width:0}
+.input,.select{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:7px 10px;font-size:13.5px}
+.input:focus,.select:focus{border-color:var(--accent);outline:none;background:var(--surface)}
+.count{font-size:12px;color:var(--muted)}
+.units{overflow:auto;flex:1;min-height:120px}
+.grp{position:sticky;top:0;z-index:1;background:var(--surface-2);border-bottom:1px solid var(--line);padding:5px 12px;font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.unit{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:0 10px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:9px 12px 9px 0;cursor:pointer}
+.unit:hover{background:var(--surface-2)}
+.unit[aria-current="true"]{background:var(--accent-soft)}
+.unit .stripe{align-self:stretch;border-radius:0 2px 2px 0}
+.unit .t{font-family:var(--f-display);font-weight:600;font-size:15px}
+.unit .t small{font-family:var(--f-mono);font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}
+.unit .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;letter-spacing:.01em}
+.c-ok{color:var(--ok);background:var(--ok-soft)} .c-warn{color:var(--warn);background:var(--warn-soft)}
+.c-crit{color:var(--crit);background:var(--crit-soft)} .c-none{color:var(--none);background:var(--none-soft)}
+.b-ok{background:var(--ok)} .b-warn{background:var(--warn)} .b-crit{background:var(--crit)} .b-none{background:var(--none)}
+
+/* detail */
+.detail{display:flex;flex-direction:column;gap:16px;min-width:0}
+.plate{position:relative;background:var(--plate);border:1px solid var(--plate-edge);border-radius:6px;padding:18px 22px 16px}
+.plate::before,.plate::after,.plate .rv1,.plate .rv2{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:var(--plate-edge);box-shadow:inset 0 1px 1px rgba(0,0,0,.25)}
+.plate::before{top:7px;left:7px}.plate::after{top:7px;right:7px}.plate .rv1{bottom:7px;left:7px}.plate .rv2{bottom:7px;right:7px}
+.plate-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.plate-head .eyebrow{font-family:var(--f-display);font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.plate-head h2{margin:2px 0 0;font-family:var(--f-display);font-size:30px;font-weight:700;line-height:1.05}
+.plate-head h2 .pol{font-weight:500;color:var(--muted)}
+.specs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0;border-top:1px solid var(--plate-edge);border-left:1px solid var(--plate-edge)}
+.spec{border-right:1px solid var(--plate-edge);border-bottom:1px solid var(--plate-edge);padding:7px 10px;min-width:0}
+.spec label,.lab{display:block;font-family:var(--f-display);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.spec .v{font-family:var(--f-mono);font-size:13.5px;word-break:break-word}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:0}
+.sec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.sec-h h3{margin:0;font-family:var(--f-display);font-size:17px;font-weight:600}
+.sec-h .meta{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px}
+.sec-b{padding:12px 16px}
+.tw{overflow-x:auto}
+table.grid{border-collapse:collapse;width:100%;font-size:13px}
+table.grid th{font-family:var(--f-display);font-weight:600;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.grid td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.grid tr:last-child td{border-bottom:0}
+table.grid td.num,table.grid th.num{text-align:center}
+table.grid td.rowh{font-weight:600;white-space:nowrap}
+.na{color:var(--line)}
+.empty{color:var(--muted)}
+.cell-in{width:72px;text-align:center;border:1px solid var(--line);background:var(--surface-2);border-radius:4px;padding:4px 4px;font-family:var(--f-mono);font-size:13px}
+.cell-in.wide{width:100%;min-width:140px;text-align:left;font-family:var(--f-body)}
+.cell-in:focus{border-color:var(--accent);outline:none;background:var(--surface)}
+.pin{width:100%;border:1px solid var(--plate-edge);background:var(--surface);border-radius:4px;padding:3px 6px;font-family:var(--f-mono);font-size:13px}
+textarea.input{min-height:90px;resize:vertical;font-family:var(--f-body)}
+.comment{white-space:pre-wrap}
+.note{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--crit);background:var(--crit-soft);color:var(--ink);border-radius:8px;padding:10px 14px}
+.banner{border:1px dashed var(--line);border-radius:8px;padding:28px 20px;text-align:center;color:var(--muted);background:var(--surface)}
+.banner strong{display:block;color:var(--ink);font-family:var(--f-display);font-size:18px;margin-bottom:4px}
+.findings{margin:0;padding-left:18px;font-size:13px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:13.5px;z-index:20;max-width:calc(100% - 32px)}
+.ro{font-size:12px;color:var(--muted)}
+@media (max-width:900px){
+  .summary{grid-template-columns:minmax(0,1fr)}
+  .main{grid-template-columns:minmax(0,1fr)}
+  .list{position:static;max-height:420px}
+}
+@media (prefers-reduced-motion:no-preference){.unit,.btn{transition:background-color .12s,border-color .12s}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow">Gestión de activos · Subestaciones</div>
+      <h1>Control de Transformadores de Potencia</h1>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btnNew" type="button" hidden><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v10M3 8h10"/></svg>Nuevo transformador</button>
+      <button class="btn" id="btnImport" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V2m-3 3 3-3 3 3M3 12v2h10v-2"/></svg>Importar Excel</button>
+      <input type="file" id="fileImport" accept=".xlsx,.xls" hidden>
+      <button class="btn" id="btnXlsx" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8m-3-3 3 3 3-3M3 12v2h10v-2"/></svg>Exportar Excel</button>
+    </div>
+  </header>
+
+  <section class="summary" aria-label="Resumen">
+    <div class="panel">
+      <h2>Condición del parque</h2>
+      <div class="kpis" id="kpis"></div>
+      <div class="stack" id="stack"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="panel">
+      <h2>Unidades por subestación</h2>
+      <div class="bars" id="bars"></div>
+    </div>
+  </section>
+
+  <div class="main">
+    <aside class="panel list" aria-label="Registro de transformadores">
+      <div class="filters">
+        <input class="input" id="q" type="search" placeholder="Buscar por SET, transformador, marca, N/S…" autocomplete="off">
+        <div class="row">
+          <select class="select" id="fSet" aria-label="Subestación"></select>
+          <select class="select" id="fMarca" aria-label="Marca"></select>
+        </div>
+        <div class="count" id="count"></div>
+      </div>
+      <div class="units" id="units"></div>
+    </aside>
+    <section class="detail" id="detail" aria-live="polite"></section>
+  </div>
+</div>
+<footer class="wrap" style="margin-top:20px"><p class="ro">Los cambios se guardan en este navegador. Usa «Exportar Excel» para respaldar o compartir la base, e «Importar Excel» para cargarla en otro equipo.</p></footer>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const COLS = [["set","Title"],["trafo","Transformador"],["tension","Tensión (kV)"],["polo","Polo"],["marca","Marca"],["tipo","Tipo"],["ns","N/S"],["mon_modelo","MONITOR_MARCA Y MODELO"],["mon_estado","ESTADO_MONITOR"],["mon_aceite_lec","MONITOR_ACEITE_LECTURA"],["mon_aceite_et1","MONITOR_ACEITE_ARRANQUE VENT_ET1"],["mon_aceite_et2","MONITOR_ACEITE_ARRANQUE VENT_ET2"],["mon_aceite_ext","MONITOR_ACEITE_ARRANQUE EXTRACTOR_ET2"],["mon_aceite_ala","MONITOR_ACEITE_ALARMA"],["mon_aceite_dis","MONITOR_ACEITE_DISPARO"],["mon_at_lec","MONITOR_AT_LECTURA"],["mon_at_car","MONITOR_AT_CARGA"],["mon_at_et1","MONITOR_AT_ARRANQUE VENT_ET1"],["mon_at_et2","MONITOR_AT_ARRANQUE VENT_ET2"],["mon_at_ext","MONITOR_AT_ARRANQUE EXT_ET2"],["mon_at_ala","MONITOR_AT_ALARMA"],["mon_at_dis","MONITOR_AT_DISPARO"],["mon_mt_lec","MONITOR_MT_LECTURA"],["mon_mt_car","MONITOR_MT_CARGA"],["mon_mt_et1","MONITOR_MT_ARRANQUE VENT_ET1"],["mon_mt_et2","MONITOR_MT_ARRANQUE VENT_ET2"],["mon_mt_ext","MONITOR_MT_ARRANQUE EXT_ET2"],["mon_mt_ala","MONITOR_MT_ALARMA"],["mon_mt_dis","MONITOR_MT_DISPARO"],["mon_bt_lec","MONITOR_BT_LECTURA"],["mon_bt_car","MONITOR_BT_CARGA"],["mon_bt_et1","MONITOR_BT_ARRANQUE VENT_ET1"],["mon_bt_et2","MONITOR_BT_ARRANQUE VENT_ET2"],["mon_bt_ext","MONITOR_BT_ARRANQUE EXT_ET2"],["mon_bt_ala","MONITOR_BT_ALARMA"],["mon_bt_dis","MONITOR_BT_DISPARO"],["an_aceite_modelo","ANALOGICO_ACEITE_MARCA Y MODELO"],["an_aceite_estado","ESTADO_ANALOGICO_ACEITE"],["an_aceite_lec","ANALOGICO_ACEITE_LECTURA"],["an_aceite_car","ANALOGICO_ACEITE_CARGA"],["an_aceite_et1","ANALOGICO_ACEITE_ARRANQUE VENT_ET1"],["an_aceite_et2","ANALOGICO_ACEITE_ARRANQUE VENT_ET2"],["an_aceite_ext","ANALOGICO_ACEITE_ARRANQUE EXT_ET2"],["an_aceite_ala","ANALOGICO_ACEITE_ALARMA"],["an_aceite_dis","ANALOGICO_ACEITE_DISPARO"],["an_at_modelo","ANALOGICO_AT_MARCA Y MODELO"],["an_at_estado","ESTADO_ANALOGICO_AT"],["an_at_lec","ANALOGICO_AT_LECTURA"],["an_at_car","ANALOGICO_AT_CARGA"],["an_at_et1","ANALOGICO_AT_ARRANQUE VENT_ET1"],["an_at_et2","ANALOGICO_AT_ARRANQUE VENT_ET2"],["an_at_ext","ANALOGICO_AT_ARRANQUE EXT_ET2"],["an_at_ala","ANALOGICO_AT_ALARMA"],["an_at_dis","ANALOGICO_AT_DISPARO"],["an_mt_modelo","ANALOGICO_MT_MARCA Y MODELO"],["an_mt_estado","ESTADO_ANALOGICO_MT"],["an_mt_lec","ANALOGICO_MT_LECTURA"],["an_mt_car","ANALOGICO_MT_CARGA"],["an_mt_et1","ANALOGICO_MT_ARRANQUE VENT_ET1"],["an_mt_et2","ANALOGICO_MT_ARRANQUE VENT_ET2"],["an_mt_ext","ANALOGICO_MT_ARRANQUE EXT_ET2"],["an_mt_ala","ANALOGICO_MT_ALARMA"],["an_mt_dis","ANALOGICO_MT_DISPARO"],["an_bt_modelo","ANALOGICO_BT_MARCA Y MODELO"],["an_bt_estado","ESTADO_ANALOGICO_BT"],["an_bt_lec","ANALOGICO_BT_LECTURA"],["an_bt_car","ANALOGICO_BT_CARGA"],["an_bt_et1","ANALOGICO_BT_ARRANQUE VENT_ET1"],["an_bt_et2","ANALOGICO_BT_ARRANQUE VENT_ET2"],["an_bt_ext","ANALOGICO_BT_ARRANQUE EXT_ET2"],["an_bt_ala","ANALOGICO_BT_ALARMA"],["an_bt_dis","ANALOGICO_BT_DISPARO"],["oltc_tipo","DESECADOR_OLTC_Tipo"],["oltc_modelo","DESECADOR_OLTC_Marca y Modelo"],["oltc_estado","ESTADO_DESECADOR_OLTC"],["tq_tipo","DESECADOR_TANQUE_Tipo"],["tq_modelo","DESECADOR_TANQUE_Marca y Modelo"],["tq_estado","ESTADO_DESECADOR_TANQUE"],["reg_modelo","REGULADOR_TENSION_Marca y Modelo"],["reg_estado","ESTADO_REGULADOR_TENSION"],["dga_modelo","Monitor DGA"],["dga_estado","ESTADO_DGA_MONITOR"],["sec_modelo","Equipo de secado"],["sec_estado","ESTADO_EQUIP_SECADO"],["vent_cant","Cantidad Ventiladores"],["vent_res","VENTILADORES_RESERVA"],["vent_ok","Ventiladores_Correctos"],["vent_crit","Ventiladores_Criticos"],["vent_obs","Ventiladores_Observados"],["rad_cant","Cantidad Radiadores"],["rad_ok","Radiadores_Correcto"],["rad_crit","Radiadores_Criticos"],["rad_obs","Radiadores_Observados"],["comentarios","Comentarios"]];
+const EXTRA = [["fecha_insp","Fecha de inspección"],["responsable","Responsable"]];
+const ALLCOLS = COLS.concat(EXTRA);
+const KEYS = new Set(ALLCOLS.map(c => c[0]));
+const ESTADOS = ["Correcto","Observado","Crítico","Fuera de servicio","No aplica"];
+const PARTS = [["aceite","Aceite"],["at","Devanado AT"],["mt","Devanado MT"],["bt","Devanado BT"]];
+const RCOLS = [["lec","Lectura"],["car","Carga"],["et1","Arr. vent. ET1"],["et2","Arr. vent. ET2"],["ext","Arr. ext. ET2"],["ala","Alarma"],["dis","Disparo"]];
+const ACC = [["oltc","Desecador OLTC",true],["tq","Desecador tanque",true],["reg","Regulador de tensión",false],["dga","Monitor DGA",false],["sec","Equipo de secado",false]];
+const META = [["set","SET / Subestación"],["trafo","Transformador"],["polo","Polo"],["tension","Tensión (kV)"],["marca","Marca"],["tipo","Tipo"],["ns","N/S"],["fecha_insp","Fecha de inspección"],["responsable","Responsable"]];
+const COND = {
+  "Correcto":{cls:"ok",rgb:[46,122,72],soft:[224,240,229]},
+  "Observado":{cls:"warn",rgb:[168,107,18],soft:[251,239,217]},
+  "Crítico":{cls:"crit",rgb:[179,55,43],soft:[248,225,222]},
+  "Sin inspección":{cls:"none",rgb:[127,141,146],soft:[233,237,238]}
+};
+const COND_ORDER = ["Crítico","Observado","Correcto","Sin inspección"];
+
+const S = { items:new Map(), sel:null, editing:false, draft:null, isNew:false, confirmDel:false,
+  q:"", fSet:"", fMarca:"", fCond:"", db:null, canWrite:true, dbState:"loading" };
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const blank = v => v == null || String(v).trim() === "";
+const show = v => blank(v) ? "—" : String(v);
+const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : 0; };
+
+function estadoKeys(){ const k=["mon_estado"]; PARTS.forEach(p=>k.push(`an_${p[0]}_estado`)); ACC.forEach(a=>k.push(`${a[0]}_estado`)); return k; }
+const EST_KEYS = estadoKeys();
+const EST_LABEL = Object.fromEntries([["mon_estado","Monitor de temperatura"], ...PARTS.map(p=>[`an_${p[0]}_estado`,`Termómetro analógico ${p[1]}`]), ...ACC.map(a=>[`${a[0]}_estado`,a[1]])]);
+
+function assess(d){
+  const findings = []; let any = false; let level = 0;
+  for (const k of EST_KEYS){
+    const v = (d[k]||"").trim(); if (!v || v==="No aplica") continue; any = true;
+    if (v==="Crítico" || v==="Fuera de servicio"){ level = Math.max(level,2); findings.push([2,`${EST_LABEL[k]}: ${v}`]); }
+    else if (v==="Observado"){ level = Math.max(level,1); findings.push([1,`${EST_LABEL[k]}: Observado`]); }
+  }
+  for (const [p,lab] of [["vent","Ventiladores"],["rad","Radiadores"]]){
+    const ok=d[p+"_ok"], cr=num(d[p+"_crit"]), ob=num(d[p+"_obs"]);
+    if (!blank(ok) || !blank(d[p+"_crit"]) || !blank(d[p+"_obs"])) any = true;
+    if (cr>0){ level=Math.max(level,2); findings.push([2,`${lab}: ${cr} en estado crítico`]); }
+    if (ob>0){ level=Math.max(level,1); findings.push([1,`${lab}: ${ob} observado(s)`]); }
+  }
+  const cond = !any ? "Sin inspección" : ["Correcto","Observado","Crítico"][level];
+  findings.sort((a,b)=>b[0]-a[0]);
+  return { cond, findings: findings.map(f=>f[1]) };
+}
+const chip = c => `<span class="chip c-${COND[c].cls}"><span class="dot b-${COND[c].cls}"></span>${esc(c)}</span>`;
+function estChip(v){
+  if (blank(v)) return `<span class="empty">Sin registro</span>`;
+  const map = {"Correcto":"ok","Observado":"warn","Crítico":"crit","Fuera de servicio":"crit","No aplica":"none"};
+  return `<span class="chip c-${map[v]||"none"}">${esc(v)}</span>`;
+}
+function sorted(){ return [...S.items.entries()].sort((a,b)=>(a[1].orden||0)-(b[1].orden||0) || a[0].localeCompare(b[0])); }
+function filtered(){
+  const q = S.q.toLowerCase().trim();
+  return sorted().filter(([id,d])=>{
+    if (S.fSet && d.set!==S.fSet) return false;
+    if (S.fMarca && d.marca!==S.fMarca) return false;
+    if (S.fCond && assess(d).cond!==S.fCond) return false;
+    if (q){ const hay = [d.set,d.trafo,d.polo,d.marca,d.tipo,d.ns,d.tension,d.mon_modelo,d.comentarios].join(" ").toLowerCase(); if (!hay.includes(q)) return false; }
+    return true;
+  });
+}
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,3200); }
+
+/* ---------- summary ---------- */
+function renderSummary(){
+  const all = sorted().map(e=>e[1]);
+  const counts = Object.fromEntries(COND_ORDER.map(c=>[c,0]));
+  all.forEach(d=>counts[assess(d).cond]++);
+  const sets = new Map(); all.forEach(d=>{ const s=d.set||"(sin SET)"; if(!sets.has(s)) sets.set(s,{n:0,tr:new Set(),c:Object.fromEntries(COND_ORDER.map(c=>[c,0]))}); const o=sets.get(s); o.n++; o.tr.add(d.trafo); o.c[assess(d).cond]++; });
+  const trafos = new Set(all.map(d=>d.set+"|"+d.trafo)).size;
+  $("kpis").innerHTML = `
+    <div class="kpi"><b>${all.length}</b><span>unidades registradas</span></div>
+    <div class="kpi"><b>${trafos}</b><span>bancos / transformadores</span></div>
+    <div class="kpi"><b>${sets.size}</b><span>subestaciones</span></div>`;
+  const tot = all.length || 1;
+  $("stack").innerHTML = COND_ORDER.filter(c=>counts[c]).map(c=>`<i class="b-${COND[c].cls}" style="width:${counts[c]/tot*100}%" title="${c}: ${counts[c]}"></i>`).join("");
+  $("legend").innerHTML = COND_ORDER.map(c=>`<button type="button" data-cond="${c}" aria-pressed="${S.fCond===c}"><span class="dot b-${COND[c].cls}"></span>${c} <span class="mono">${counts[c]}</span></button>`).join("");
+  const max = Math.max(1,...[...sets.values()].map(o=>o.n));
+  $("bars").innerHTML = [...sets.entries()].map(([s,o])=>`
+    <button type="button" class="lbl" data-set="${esc(s)}">${esc(s)}</button>
+    <div class="track" style="width:${o.n/max*100}%">${COND_ORDER.filter(c=>o.c[c]).map(c=>`<i class="b-${COND[c].cls}" style="width:${o.c[c]/o.n*100}%"></i>`).join("")}</div>
+    <span class="n">${o.n} u · ${o.tr.size} tr</span>`).join("") || `<span class="empty">Sin datos</span>`;
+}
+
+/* ---------- list ---------- */
+function fillSelect(el, label, values, cur){
+  el.innerHTML = `<option value="">${label}</option>` + values.map(v=>`<option${v===cur?" selected":""}>${esc(v)}</option>`).join("");
+}
+function renderFilters(){
+  const all = sorted().map(e=>e[1]);
+  fillSelect($("fSet"), "Todas las SET", [...new Set(all.map(d=>d.set).filter(Boolean))], S.fSet);
+  fillSelect($("fMarca"), "Todas las marcas", [...new Set(all.map(d=>d.marca).filter(Boolean))].sort(), S.fMarca);
+}
+function renderList(){
+  const rows = filtered();
+  $("count").textContent = `${rows.length} de ${S.items.size} unidades` + (S.fCond?` · filtro: ${S.fCond}`:"");
+  if (S.dbState==="loading"){ $("units").innerHTML = `<div class="banner" style="margin:12px;border-style:dashed"><strong>Cargando registro…</strong>Conectando con la base de datos.</div>`; return; }
+  if (!rows.length){ $("units").innerHTML = `<div class="banner" style="margin:12px"><strong>${S.items.size?"Sin coincidencias":"Registro vacío"}</strong>${S.items.size?"Ajusta la búsqueda o los filtros.":"Agrega el primer transformador con «Nuevo transformador»."}</div>`; return; }
+  let html = "", last = null;
+  for (const [id,d] of rows){
+    if (d.set!==last){ last=d.set; const n=rows.filter(r=>r[1].set===d.set).length; html += `<div class="grp"><span>${esc(d.set||"(sin SET)")}</span><span class="mono">${n}</span></div>`; }
+    const a = assess(d);
+    html += `<button type="button" class="unit" data-id="${esc(id)}" aria-current="${S.sel===id}">
+      <span class="stripe b-${COND[a.cond].cls}"></span>
+      <span style="min-width:0"><span class="t">${esc(d.trafo)} <small>${esc(d.polo)} · ${esc(d.tension)} kV</small></span>
+      <span class="s" style="display:block">${esc(d.marca)} · ${esc(d.tipo)} · N/S <span class="mono">${esc(d.ns)}</span></span></span>
+      ${chip(a.cond)}</button>`;
+  }
+  $("units").innerHTML = html;
+}
+
+/* ---------- detail ---------- */
+const cur = () => S.editing ? S.draft : (S.items.get(S.sel) || null);
+function val(k, opts={}){
+  const d = cur(); if (!KEYS.has(k)) return `<span class="na">—</span>`;
+  const v = d[k] ?? "";
+  if (!S.editing) return opts.estado ? estChip(v) : (blank(v) ? `<span class="empty">—</span>` : esc(v));
+  const cls = opts.cls || "cell-in";
+  if (opts.estado) return `<select class="${cls}" data-k="${k}" style="width:auto;min-width:130px;font-family:var(--f-body)"><option value="">Sin registro</option>${ESTADOS.map(e=>`<option${e===v?" selected":""}>${e}</option>`).join("")}</select>`;
+  if (opts.area) return `<textarea class="input" data-k="${k}" id="in-${k}">${esc(v)}</textarea>`;
+  return `<input class="${cls}" data-k="${k}" id="in-${k}" type="${opts.type||"text"}" value="${esc(v)}"${opts.list?` list="${opts.list}"`:""}>`;
+}
+function renderDetail(){
+  const el = $("detail");
+  if (S.dbState==="nodb"){ el.innerHTML = `<div class="banner"><strong>Base de datos no disponible</strong>Abre esta página desde tu cuenta de Claude para ver y editar el registro.</div>`; return; }
+  const d = cur();
+  if (!d){ el.innerHTML = `<div class="banner"><strong>Selecciona un transformador</strong>Elige una unidad del registro para ver su ficha, editarla o generar el informe en PDF.</div>`; return; }
+  const a = assess(d);
+  const ed = S.editing;
+  const tools = ed
+    ? `<button class="btn primary" type="button" data-act="save">Guardar cambios</button><button class="btn" type="button" data-act="cancel">Cancelar</button>`
+    : `<button class="btn primary" type="button" data-act="pdf"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6V2h8v4M4 12H2.5V6.5h11V12H12M4 10h8v4H4z"/></svg>Imprimir informe PDF</button>`
+      + (S.canWrite ? `<button class="btn" type="button" data-act="edit">Editar</button><button class="btn danger" type="button" data-act="del">Eliminar</button>` : `<span class="ro">Solo lectura</span>`);
+  const confirm = S.confirmDel ? `<div class="note"><span>¿Eliminar <b>${esc(d.set)} ${esc(d.trafo)} ${esc(d.polo)}</b> del registro? Esta acción no se puede deshacer.</span><button class="btn danger" type="button" data-act="delyes">Sí, eliminar</button><button class="btn" type="button" data-act="delno">Cancelar</button></div>` : "";
+
+  const specs = META.map(([k,l])=>{
+    let inner;
+    if (ed){
+      const type = k==="fecha_insp" ? "date" : "text";
+      const list = k==="set" ? "dl-set" : k==="marca" ? "dl-marca" : k==="polo" ? "dl-polo" : k==="tension" ? "dl-ten" : "";
+      inner = `<input class="pin" data-k="${k}" id="in-${k}" type="${type}" value="${esc(d[k]??"")}"${list?` list="${list}"`:""}>`;
+    } else inner = `<div class="v">${k==="fecha_insp" ? esc(fmtDate(d[k])||"—") : esc(show(d[k]))}</div>`;
+    return `<div class="spec"><label for="in-${k}">${l}</label>${inner}</div>`;
+  }).join("");
+  const all = sorted().map(e=>e[1]);
+  const dl = (id,arr)=>`<datalist id="${id}">${[...new Set(arr.filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join("")}</datalist>`;
+
+  const monRows = PARTS.map(([p,lab])=>`<tr><td class="rowh">${lab}</td>${RCOLS.map(([c])=>`<td class="num mono">${val(`mon_${p}_${c}`)}</td>`).join("")}</tr>`).join("");
+  const anRows = PARTS.map(([p,lab])=>`<tr><td class="rowh">${lab}</td><td>${val(`an_${p}_modelo`,{cls:"cell-in wide"})}</td><td>${val(`an_${p}_estado`,{estado:1})}</td>${RCOLS.map(([c])=>`<td class="num mono">${val(`an_${p}_${c}`)}</td>`).join("")}</tr>`).join("");
+  const accRows = ACC.map(([p,lab,hasTipo])=>`<tr><td class="rowh">${lab}</td><td>${hasTipo?val(`${p}_tipo`,{cls:"cell-in wide",list:"dl-tipo"}):`<span class="na">—</span>`}</td><td>${val(`${p}_modelo`,{cls:"cell-in wide"})}</td><td>${val(`${p}_estado`,{estado:1})}</td></tr>`).join("");
+  const vrRows = [["vent","Ventiladores"],["rad","Radiadores"]].map(([p,lab])=>`<tr><td class="rowh">${lab}</td>${["cant","res","ok","obs","crit"].map(c=>`<td class="num mono">${val(`${p}_${c}`)}</td>`).join("")}</tr>`).join("");
+
+  el.innerHTML = `
+    ${confirm}
+    <div class="plate"><span class="rv1"></span><span class="rv2"></span>
+      <div class="plate-head">
+        <div><div class="eyebrow">${S.isNew?"Nuevo registro":"Placa de identificación · "+esc(d.set||"")}</div>
+          <h2>${esc(d.trafo||"Transformador")} <span class="pol">${esc(d.polo||"")}</span></h2></div>
+        <div>${S.isNew?"":chip(a.cond)}</div>
+      </div>
+      <div class="specs">${specs}</div>
+    </div>
+    <div class="toolbar">${tools}</div>
+    ${!ed && a.findings.length ? `<div class="sec"><div class="sec-h"><h3>Hallazgos</h3></div><div class="sec-b"><ul class="findings">${a.findings.map(f=>`<li>${esc(f)}</li>`).join("")}</ul></div></div>` : ""}
+    <div class="sec">
+      <div class="sec-h"><h3>Monitor de temperatura</h3><div class="meta"><span><span class="lab">Marca y modelo</span>${val("mon_modelo",{cls:"cell-in wide"})}</span><span><span class="lab">Estado</span>${val("mon_estado",{estado:1})}</span></div></div>
+      <div class="sec-b tw"><table class="grid"><thead><tr><th>Elemento</th>${RCOLS.map(c=>`<th class="num">${c[1]}</th>`).join("")}</tr></thead><tbody>${monRows}</tbody></table></div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><h3>Termómetros analógicos</h3></div>
+      <div class="sec-b tw"><table class="grid"><thead><tr><th>Instrumento</th><th>Marca y modelo</th><th>Estado</th>${RCOLS.map(c=>`<th class="num">${c[1]}</th>`).join("")}</tr></thead><tbody>${anRows}</tbody></table></div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><h3>Equipos auxiliares</h3></div>
+      <div class="sec-b tw"><table class="grid"><thead><tr><th>Equipo</th><th>Tipo</th><th>Marca y modelo</th><th>Estado</th></tr></thead><tbody>${accRows}</tbody></table></div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><h3>Refrigeración</h3></div>
+      <div class="sec-b tw"><table class="grid"><thead><tr><th>Sistema</th><th class="num">Cantidad</th><th class="num">Reserva</th><th class="num">Correctos</th><th class="num">Observados</th><th class="num">Críticos</th></tr></thead><tbody>${vrRows}</tbody></table></div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><h3>Comentarios</h3></div>
+      <div class="sec-b">${ed ? val("comentarios",{area:1}) : `<div class="comment">${blank(d.comentarios)?`<span class="empty">Sin comentarios.</span>`:esc(d.comentarios)}</div>`}</div>
+    </div>
+    ${ed ? dl("dl-set",all.map(x=>x.set))+dl("dl-marca",all.map(x=>x.marca))+dl("dl-polo",["R","S","T","RST"])+dl("dl-ten",all.map(x=>x.tension))+dl("dl-tipo",["Convencional","Electrónico","-"]) : ""}
+  `;
+}
+function fmtDate(v){ if (blank(v)) return ""; const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?`${m[3]}/${m[2]}/${m[1]}`:String(v); }
+function renderAll(){ renderSummary(); renderFilters(); renderList(); renderDetail(); }
+
+/* ---------- events ---------- */
+$("units").addEventListener("click", e=>{
+  const b = e.target.closest(".unit"); if (!b) return;
+  if (S.editing){ toast("Guarda o cancela la edición antes de cambiar de unidad."); return; }
+  S.sel = b.dataset.id; S.confirmDel=false; renderList(); renderDetail();
+  if (window.matchMedia("(max-width:900px)").matches) $("detail").scrollIntoView({behavior:"smooth",block:"start"});
+});
+$("legend").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; S.fCond = S.fCond===b.dataset.cond?"":b.dataset.cond; renderSummary(); renderList(); });
+$("bars").addEventListener("click", e=>{ const b=e.target.closest(".lbl"); if(!b) return; S.fSet = S.fSet===b.dataset.set?"":b.dataset.set; renderFilters(); renderList(); });
+$("q").addEventListener("input", e=>{ S.q=e.target.value; renderList(); });
+$("fSet").addEventListener("change", e=>{ S.fSet=e.target.value; renderList(); });
+$("fMarca").addEventListener("change", e=>{ S.fMarca=e.target.value; renderList(); });
+$("detail").addEventListener("input", e=>{ const k=e.target.dataset.k; if (k && S.draft) S.draft[k]=e.target.value; });
+$("detail").addEventListener("change", e=>{ const k=e.target.dataset.k; if (k && S.draft) S.draft[k]=e.target.value; });
+$("detail").addEventListener("click", async e=>{
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act; const d = S.items.get(S.sel);
+  if (act==="edit"){ S.editing=true; S.isNew=false; S.draft={...d}; S.confirmDel=false; renderDetail(); }
+  else if (act==="cancel"){ S.editing=false; S.draft=null; if (S.isNew){ S.isNew=false; } renderDetail(); }
+  else if (act==="save"){ await save(b); }
+  else if (act==="del"){ S.confirmDel=true; renderDetail(); }
+  else if (act==="delno"){ S.confirmDel=false; renderDetail(); }
+  else if (act==="delyes"){ await remove(b); }
+  else if (act==="pdf"){ await makePDF(d, b); }
+});
+$("btnNew").addEventListener("click", ()=>{
+  if (S.editing){ toast("Termina la edición actual primero."); return; }
+  const d = Object.fromEntries(ALLCOLS.map(c=>[c[0],""]));
+  d.orden = Math.max(0,...[...S.items.values()].map(x=>x.orden||0))+1;
+  if (S.fSet) d.set = S.fSet;
+  S.draft=d; S.editing=true; S.isNew=true; S.confirmDel=false; renderDetail();
+  $("detail").scrollIntoView({behavior:"smooth",block:"start"});
+  setTimeout(()=>$("in-set")?.focus(),50);
+});
+$("btnXlsx").addEventListener("click", e=>exportXlsx(e.currentTarget));
+
+function slug(s){ return String(s).normalize("NFKD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,120); }
+async function save(btn){
+  const d = S.draft;
+  for (const k of Object.keys(d)) if (typeof d[k]==="string") d[k]=d[k].trim();
+  if (blank(d.set) || blank(d.trafo)){ toast("Completa al menos la SET y el transformador."); return; }
+  let id = S.sel;
+  if (S.isNew){
+    id = slug(`${d.set}-${d.trafo}-${d.polo||"x"}`) || ("u-"+Date.now());
+    if (S.items.has(id)){ toast("Ya existe una unidad con esa SET, transformador y polo."); return; }
+  }
+  d.actualizado = new Date().toISOString();
+  btn.disabled = true; btn.textContent = "Guardando…";
+  try{
+    await S.db.collection("transformadores").doc(id).set(d);
+    S.items.set(id, {...d}); S.sel=id; S.editing=false; S.draft=null; S.isNew=false;
+    toast("Cambios guardados"); renderAll();
+  }catch(err){
+    btn.disabled=false; btn.textContent="Guardar cambios";
+    if (err && err.code==="invalid_argument"){ S.canWrite=false; toast("No tienes permiso para modificar este registro."); }
+    else toast("No se pudo guardar. Revisa la conexión e inténtalo de nuevo.");
+  }
+}
+async function remove(btn){
+  btn.disabled=true;
+  try{ await S.db.collection("transformadores").doc(S.sel).delete(); S.items.delete(S.sel); S.sel=null; S.confirmDel=false; toast("Unidad eliminada"); renderAll(); }
+  catch(err){ btn.disabled=false; toast("No se pudo eliminar. Inténtalo de nuevo."); }
+}
+
+/* ---------- libraries (lazy) ---------- */
+const LIBS = {
+  jspdf: ["https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"],
+  xlsx: ["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"]
+};
+const loaded = {};
+function loadLib(name){
+  if (loaded[name]) return loaded[name];
+  loaded[name] = new Promise((res,rej)=>{
+    const urls = LIBS[name].slice();
+    const next = ()=>{ const u=urls.shift(); if(!u){ delete loaded[name]; rej(new Error("load")); return; }
+      const s=document.createElement("script"); s.src=u; s.onload=()=>res(); s.onerror=()=>{ s.remove(); next(); }; document.head.appendChild(s); };
+    next();
+  });
+  return loaded[name];
+}
+async function offerFile(filename, data){
+  try{
+    const blob = data instanceof Blob ? data : new Blob([data]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    toast("Descargado: "+filename);
+  }catch(e){ toast("No se pudo descargar el archivo."); }
+}
+const stamp = (dt=new Date()) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+const asciiName = s => String(s).normalize("NFKD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"_").replace(/^_|_$/g,"");
+
+async function exportXlsx(btn){
+  if (!S.items.size){ toast("No hay registros para exportar."); return; }
+  btn.disabled=true;
+  try{
+    await loadLib("xlsx");
+    const head = ALLCOLS.map(c=>c[1]);
+    const rows = sorted().map(([,d])=>ALLCOLS.map(([k])=>{ const v=d[k]??""; return /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v; }));
+    const ws = XLSX.utils.aoa_to_sheet([head,...rows]);
+    ws["!cols"] = head.map(h=>({wch:Math.min(28,Math.max(8,h.length+2))}));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Hoja2");
+    const buf = XLSX.write(wb,{bookType:"xlsx",type:"array"});
+    await offerFile(`BD_TRANSFORMADORES_${stamp()}.xlsx`, buf);
+  }catch(e){ toast("No se pudo generar el Excel."); }
+  finally{ btn.disabled=false; }
+}
+
+/* ---------- PDF report ---------- */
+async function makePDF(d, btn){
+  if (!d) return;
+  const label = btn.innerHTML; btn.disabled=true; btn.textContent="Generando informe…";
+  try{
+    await loadLib("jspdf");
+    const doc = buildReport(d);
+    const buf = doc.output("arraybuffer");
+    await offerFile(`Informe_${asciiName(d.set)}_${asciiName(d.trafo)}_${asciiName(d.polo||"")}_${stamp()}.pdf`, buf);
+  }catch(e){ console.error(e); toast("No se pudo generar el informe PDF."); }
+  finally{ btn.disabled=false; btn.innerHTML=label; }
+}
+function buildReport(d){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm", format:"a4"});
+  const W = 210, H = 297, M = 14, CW = W - 2*M;
+  const INK=[22,35,42], MUTED=[90,106,113], LINE=[205,212,214], TEAL=[13,102,98], HEADF=[236,240,240];
+  const now = new Date();
+  const emit = `${String(now.getDate()).padStart(2,"0")}/${String(now.getMonth()+1).padStart(2,"0")}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  const a = assess(d);
+  let y = 0;
+  const T = v => blank(v) ? "—" : String(v);
+
+  function pageHeader(){
+    doc.setFillColor(...TEAL); doc.rect(0,0,W,24,"F");
+    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(14);
+    doc.text("INFORME DE ESTADO DE TRANSFORMADOR", M, 11);
+    doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    doc.text(`${T(d.set)} · ${T(d.trafo)} · Polo ${T(d.polo)} · ${T(d.tension)} kV`, M, 17.5);
+    doc.setFontSize(8); doc.text(`Emitido: ${emit}`, W-M, 11, {align:"right"});
+    y = 32;
+  }
+  function ensure(h){ if (y + h > H - 18){ doc.addPage(); pageHeader(); return true; } return false; }
+  function section(title){
+    ensure(14); y += 2;
+    doc.setTextColor(...TEAL); doc.setFont("helvetica","bold"); doc.setFontSize(10.5);
+    doc.text(title.toUpperCase(), M, y); y += 1.6;
+    doc.setDrawColor(...TEAL); doc.setLineWidth(0.5); doc.line(M, y, M+CW, y); doc.setLineWidth(0.2); y += 3.5;
+  }
+  function estFill(v){
+    const m={"Correcto":COND["Correcto"],"Observado":COND["Observado"],"Crítico":COND["Crítico"],"Fuera de servicio":COND["Crítico"]}[v];
+    return m ? m.soft : null;
+  }
+  // table: cols [{h, w, align}] ; rows arrays of strings; estCols: indexes to tint
+  function table(cols, rows, opt={}){
+    const fs = opt.fs || 8.2, lh = fs*0.3528*1.25, pad = 1.6;
+    const fit = (txt,w)=>doc.splitTextToSize(String(txt), w - 2*pad);
+    const drawRow = (cells, isHead)=>{
+      doc.setFont("helvetica", isHead ? "bold" : "normal"); doc.setFontSize(isHead ? fs-0.6 : fs);
+      const lines = cells.map((c,i)=>fit(c, cols[i].w));
+      const h = Math.max(...lines.map(l=>l.length))*lh + 2*pad;
+      if (!isHead && ensure(h)) { drawRow(cols.map(c=>c.h), true); doc.setFont("helvetica","normal"); doc.setFontSize(fs); }
+      let x = M;
+      cells.forEach((c,i)=>{
+        const w = cols[i].w;
+        let fill = isHead ? HEADF : (opt.first && i===0 ? [247,249,249] : null);
+        if (!isHead && opt.est && opt.est.includes(i)) fill = estFill(c) || fill;
+        if (fill){ doc.setFillColor(...fill); doc.rect(x, y, w, h, "F"); }
+        doc.setDrawColor(...LINE); doc.rect(x, y, w, h, "S");
+        doc.setTextColor(...(isHead ? MUTED : INK));
+        if (!isHead && opt.first && i===0) doc.setFont("helvetica","bold"); else doc.setFont("helvetica", isHead?"bold":"normal");
+        const al = cols[i].align || "left";
+        const tx = al==="center" ? x + w/2 : x + pad;
+        doc.text(lines[i], tx, y + pad + lh*0.78, {align: al==="center"?"center":"left", lineHeightFactor:1.25});
+        x += w;
+      });
+      y += h;
+    };
+    ensure(12); drawRow(cols.map(c=>c.h), true);
+    rows.forEach(r=>drawRow(r.map(T), false));
+    y += 4;
+  }
+  function kv(pairs, ncol=3){
+    const cw = CW/ncol, rh = 10.5;
+    for (let i=0;i<pairs.length;i+=ncol){
+      ensure(rh);
+      for (let j=0;j<ncol;j++){
+        const p = pairs[i+j]; const x = M + j*cw;
+        doc.setDrawColor(...LINE); doc.rect(x, y, cw, rh, "S");
+        if (!p) continue;
+        doc.setFont("helvetica","bold"); doc.setFontSize(6.6); doc.setTextColor(...MUTED);
+        doc.text(p[0].toUpperCase(), x+2, y+3.6);
+        doc.setFont("helvetica","normal"); doc.setFontSize(9.2); doc.setTextColor(...INK);
+        doc.text(doc.splitTextToSize(T(p[1]), cw-4)[0], x+2, y+8.2);
+      }
+      y += rh;
+    }
+    y += 4;
+  }
+
+  pageHeader();
+  section("1. Datos de identificación");
+  kv([["SET / Subestación",d.set],["Transformador",d.trafo],["Polo",d.polo],["Tensión (kV)",d.tension],["Marca",d.marca],["Tipo",d.tipo],["N° de serie",d.ns],["Fecha de inspección",fmtDate(d.fecha_insp)],["Responsable",d.responsable]]);
+
+  section("2. Condición general");
+  ensure(16);
+  const cc = COND[a.cond];
+  doc.setFillColor(...cc.soft); doc.setDrawColor(...cc.rgb); doc.roundedRect(M, y, 52, 11, 1.5, 1.5, "FD");
+  doc.setTextColor(...cc.rgb); doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.text(a.cond.toUpperCase(), M+26, y+7.2, {align:"center"});
+  doc.setTextColor(...INK); doc.setFont("helvetica","normal"); doc.setFontSize(8.6);
+  const summaryTxt = a.cond==="Sin inspección" ? "No hay estados registrados para los equipos de esta unidad." :
+    a.findings.length ? `${a.findings.length} hallazgo(s) registrados. Ver detalle abajo.` : "Todos los equipos con estado registrado se encuentran correctos.";
+  doc.text(doc.splitTextToSize(summaryTxt, CW-60), M+58, y+4.6);
+  y += 15;
+  if (a.findings.length){
+    doc.setFontSize(8.6);
+    a.findings.forEach(f=>{ const ls=doc.splitTextToSize(f, CW-6); ensure(ls.length*4+1); doc.setTextColor(...INK); doc.text("•", M+1, y); doc.text(ls, M+5, y); y += ls.length*4 + 0.6; });
+    y += 3;
+  }
+
+  section("3. Monitor de temperatura");
+  kv([["Marca y modelo",d.mon_modelo],["Estado",d.mon_estado]],2);
+  const rw = (CW-34)/RCOLS.length;
+  table([{h:"Elemento",w:34},...RCOLS.map(c=>({h:c[1],w:rw,align:"center"}))],
+    PARTS.map(([p,lab])=>[lab, ...RCOLS.map(([c])=>KEYS.has(`mon_${p}_${c}`) ? d[`mon_${p}_${c}`] : "n/a")]), {first:true});
+
+  section("4. Termómetros analógicos");
+  const aw = (CW-26-38-22)/RCOLS.length;
+  table([{h:"Instrumento",w:26},{h:"Marca y modelo",w:38},{h:"Estado",w:22,align:"center"},...RCOLS.map(c=>({h:c[1].replace("Arr. ",""),w:aw,align:"center"}))],
+    PARTS.map(([p,lab])=>[lab.replace("Devanado ","Dev. "), d[`an_${p}_modelo`], d[`an_${p}_estado`], ...RCOLS.map(([c])=>d[`an_${p}_${c}`])]), {first:true, est:[2], fs:7.6});
+
+  section("5. Equipos auxiliares");
+  table([{h:"Equipo",w:42},{h:"Tipo",w:32},{h:"Marca y modelo",w:CW-42-32-34},{h:"Estado",w:34,align:"center"}],
+    ACC.map(([p,lab,ht])=>[lab, ht ? d[`${p}_tipo`] : "n/a", d[`${p}_modelo`], d[`${p}_estado`]]), {first:true, est:[3]});
+
+  section("6. Refrigeración");
+  const vw = (CW-40)/5;
+  table([{h:"Sistema",w:40},...["Cantidad","Reserva","Correctos","Observados","Críticos"].map(h=>({h,w:vw,align:"center"}))],
+    [["vent","Ventiladores"],["rad","Radiadores"]].map(([p,lab])=>[lab, ...["cant","res","ok","obs","crit"].map(c=>KEYS.has(`${p}_${c}`) ? d[`${p}_${c}`] : "n/a")]), {first:true});
+
+  section("7. Comentarios y observaciones");
+  doc.setFont("helvetica","normal"); doc.setFontSize(9);
+  const cl = doc.splitTextToSize(blank(d.comentarios) ? "Sin comentarios registrados." : d.comentarios, CW-6);
+  const ch = Math.max(18, cl.length*4.4 + 6);
+  ensure(ch);
+  doc.setDrawColor(...LINE); doc.rect(M, y, CW, ch, "S");
+  doc.setTextColor(...(blank(d.comentarios)?MUTED:INK)); doc.text(cl, M+3, y+6);
+  y += ch + 8;
+
+  // signatures
+  ensure(30);
+  y = Math.max(y, H - 18 - 30);
+  const sw = (CW-16)/2;
+  [["Elaborado por", d.responsable],["Revisado / aprobado por",""]].forEach(([t,n],i)=>{
+    const x = M + i*(sw+16);
+    doc.setDrawColor(...INK); doc.line(x, y+16, x+sw, y+16);
+    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...INK); doc.text(t, x, y+20.5);
+    doc.setFont("helvetica","normal"); doc.setTextColor(...MUTED); doc.text(blank(n)?"Nombre, firma y fecha":n, x, y+24.5);
+  });
+
+  const pages = doc.getNumberOfPages();
+  for (let i=1;i<=pages;i++){
+    doc.setPage(i);
+    doc.setDrawColor(...LINE); doc.line(M, H-12, W-M, H-12);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+    doc.text("Control de Transformadores de Potencia · Gestión de activos", M, H-7.5);
+    doc.text(`Página ${i} de ${pages}`, W-M, H-7.5, {align:"right"});
+  }
+  return doc;
+}
+
+/* ---------- almacenamiento local (este navegador) ---------- */
+const SEED = {"balnearios-tra2-r":{"set":"Balnearios","trafo":"TRA2","tension":"220/60","polo":"R","marca":"EFACEC","tipo":"ACORAZADO IMBRICADO","ns":"16625S","mon_modelo":"-","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM EM4DB","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"TRANSEC","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"4","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":1,"fecha_insp":"","responsable":""},"balnearios-tra2-s":{"set":"Balnearios","trafo":"TRA2","tension":"220/60","polo":"S","marca":"EFACEC","tipo":"ACORAZADO IMBRICADO","ns":"16631S","mon_modelo":"-","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"WEC","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"AKM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"TRANSEC","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"4","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":2,"fecha_insp":"","responsable":""},"balnearios-tra2-t":{"set":"Balnearios","trafo":"TRA2","tension":"220/60","polo":"T","marca":"EFACEC","tipo":"ACORAZADO IMBRICADO","ns":"16627S","mon_modelo":"TREE TECH PIA1","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"-","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"-","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"TRANSEC","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"4","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":3,"fecha_insp":"","responsable":""},"balnearios-tra3-r":{"set":"Balnearios","trafo":"TRA3","tension":"220/60","polo":"R","marca":"SIEMENS","tipo":"TLPN8246","ns":"185634","mon_modelo":"QUALITROL ITM509-0023376","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"Messko MT-STW160F2","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"Messko MT-STW160F2","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"Messko MT-STW160F2","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"VAISALA","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":4,"fecha_insp":"","responsable":""},"balnearios-tra3-s":{"set":"Balnearios","trafo":"TRA3","tension":"220/60","polo":"S","marca":"SIEMENS","tipo":"TLPN8246","ns":"185635","mon_modelo":"QUALITROL IED509-00023376","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"Messko MT-STW160F2","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"Messko MT-STW160F2","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"Messko MT-STW160F2","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"VAISALA","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":5,"fecha_insp":"","responsable":""},"balnearios-tra3-t":{"set":"Balnearios","trafo":"TRA3","tension":"220/60","polo":"T","marca":"SIEMENS","tipo":"TLPN8246","ns":"185636","mon_modelo":"QUALITROL IED509-00023376","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"Messko MT-STW160F2","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"Messko MT-STW160F2","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"Messko MT-STW160F2","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"VAISALA","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":6,"fecha_insp":"","responsable":""},"balnearios-tra4-r":{"set":"Balnearios","trafo":"TRA4","tension":"220/60","polo":"R","marca":"SIEMENS","tipo":"ELUN 7754","ns":"P186248","mon_modelo":"QUALITROL ITM509-00221921","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"Messko MT-STW160F/2/6m","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"Messko MT-STW160F/2/4/6m","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"Messko MT-STW160F/2/4/6m","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":7,"fecha_insp":"","responsable":""},"balnearios-tra4-s":{"set":"Balnearios","trafo":"TRA4","tension":"220/60","polo":"S","marca":"SIEMENS","tipo":"ELUN 7754","ns":"P186249","mon_modelo":"QUALITROL ITM509-00221921","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"Messko MT-STW160F/2/6m","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"Messko MT-STW160F/2/4/6m","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"Messko MT-STW160F/2/4/6m","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":8,"fecha_insp":"","responsable":""},"balnearios-tra4-t":{"set":"Balnearios","trafo":"TRA4","tension":"220/60","polo":"T","marca":"SIEMENS","tipo":"ELUN 7754","ns":"P168250","mon_modelo":"QUALITROL ITM509-00221921","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"Messko MT-STW160F/2/6m","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"Messko MT-STW160F/2/4/6m","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"Messko MT-STW160F/2/4/6m","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":9,"fecha_insp":"","responsable":""},"balnearios-tra5-r":{"set":"Balnearios","trafo":"TRA5","tension":"220/60","polo":"R","marca":"EFACEC","tipo":"ACORAZADO IMBRICADO","ns":"16626S","mon_modelo":"-","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM EM4DB","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"TRANSEC","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"4","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":10,"fecha_insp":"","responsable":""},"balnearios-tra5-s":{"set":"Balnearios","trafo":"TRA5","tension":"220/60","polo":"S","marca":"EFACEC","tipo":"ACORAZADO IMBRICADO","ns":"16629S","mon_modelo":"-","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM EM4DB","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"TRANSEC","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"4","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":11,"fecha_insp":"","responsable":""},"balnearios-tra5-t":{"set":"Balnearios","trafo":"TRA5","tension":"220/60","polo":"T","marca":"EFACEC","tipo":"ACORAZADO IMBRICADO","ns":"16630S","mon_modelo":"-","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"-","oltc_modelo":"-","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM EM4DB","tq_estado":"","reg_modelo":"-","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"TRANSEC","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"4","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":12,"fecha_insp":"","responsable":""},"balnearios-trf1-rst":{"set":"Balnearios","trafo":"TRF1","tension":"60/22.9/10","polo":"RST","marca":"ABB","tipo":"TD2LF","ns":"770027-21","mon_modelo":"QUALITROL ITM509","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"-","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"-","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"COMEM EM3DB","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM EM4DB","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"4","vent_res":"3","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"6","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":13,"fecha_insp":"","responsable":""},"balnearios-trf2-rst":{"set":"Balnearios","trafo":"TRF2","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"PO","ns":"150700A/02","mon_modelo":"QUALITROL ITM509","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"14","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":14,"fecha_insp":"","responsable":""},"balnearios-trf3-rst":{"set":"Balnearios","trafo":"TRF3","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"cKLTM 1537-10","ns":"364072","mon_modelo":"QUALITROL ITM509","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"COMEM EM3DB","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"14","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":15,"fecha_insp":"","responsable":""},"central-trf1-rst":{"set":"Central","trafo":"TRF1","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"PO","ns":"150700A/01","mon_modelo":"QUALITROL ITM509-00255301","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO DB100/OFF","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO DB100-T/OFF","tq_estado":"","reg_modelo":"MR TAPCON BU","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"14","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":16,"fecha_insp":"","responsable":""},"central-trf2-rst":{"set":"Central","trafo":"TRF2","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"PO","ns":"150700B/01","mon_modelo":"QUALITROL IED509-00019160","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO DB100/OFF","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO DB100-T/OFF","tq_estado":"","reg_modelo":"MR TAPCON BU","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"14","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":17,"fecha_insp":"","responsable":""},"central-trf3-rst":{"set":"Central","trafo":"TRF3","tension":"60/22.9","polo":"RST","marca":"DELCROSA","tipo":"TOCH","ns":"145916","mon_modelo":"QUALITROL ITM509-00229814","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"COMEM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"COMEM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"COMEM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO DB100/OFF","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO DB100-T/OFF","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":18,"fecha_insp":"","responsable":""},"barranco-trf1-rst":{"set":"Barranco","trafo":"TRF1","tension":"60/10","polo":"RST","marca":"DELCROSA","tipo":"TOCH","ns":"149292T","mon_modelo":"QUALITROL ITM509","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"AKM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO","tq_estado":"","reg_modelo":"MR TAPCON BU","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":19,"fecha_insp":"","responsable":""},"barranco-trf2-rst":{"set":"Barranco","trafo":"TRF2","tension":"60/10","polo":"RST","marca":"ABB","tipo":"TD2LF","ns":"160967T","mon_modelo":"QUALITROL ITM509","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"ABB COMEM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"AKM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO","tq_estado":"","reg_modelo":"","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"Reclamado a Hitachi","orden":20,"fecha_insp":"","responsable":""},"barranco-trf3-rst":{"set":"Barranco","trafo":"TRF3","tension":"60/10","polo":"RST","marca":"DELCROSA","tipo":"TOCH","ns":"161159T2","mon_modelo":"-","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"COMEM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"COMEM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"COMEM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"CEDASPE","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO","tq_estado":"","reg_modelo":"MR TAPCON 230","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"6","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"Inhibido el disparo por °T de AT y BT","orden":21,"fecha_insp":"","responsable":""},"neyra-trf1-rst":{"set":"Neyra","trafo":"TRF1","tension":"60/22.9/10","polo":"RST","marca":"ABB","tipo":"TD3LF","ns":"760047-01","mon_modelo":"QUALITROL ITM509-0002657","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"-","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"-","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"COMEM EM3DB","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM EM4DB","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"7","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"6","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":22,"fecha_insp":"","responsable":""},"neyra-trf2-rst":{"set":"Neyra","trafo":"TRF2","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"cKLTM 1537-10","ns":"364073","mon_modelo":"QUALITROL ITM509-00048734","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"CEDASPE","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"12","vent_res":"1","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":23,"fecha_insp":"","responsable":""},"neyra-trf3-rst":{"set":"Neyra","trafo":"TRF3","tension":"60/10","polo":"RST","marca":"DELCROSA","tipo":"TOCH","ns":"146659 T1","mon_modelo":"QUALITROL ITM509-00229314","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"COMEM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"TERMAN COMEM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"COMEM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO DB100/OFF","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO DB100-T/OFF","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":24,"fecha_insp":"","responsable":""},"monterrico-trf1-rst":{"set":"Monterrico","trafo":"TRF1","tension":"60/22.9","polo":"RST","marca":"DELCROSA","tipo":"TOCH","ns":"146660-T2","mon_modelo":"QUALITROL ITM509","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"COMEM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"COMEM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"COMEM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO DB100","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":25,"fecha_insp":"","responsable":""},"monterrico-trf2-rst":{"set":"Monterrico","trafo":"TRF2","tension":"60/10","polo":"RST","marca":"DELCROSA","tipo":"TOCH","ns":"123157T","mon_modelo":"QUALITROL ITM509-000399276","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"AKM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO DB100RM","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO DB100RM-T","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"VAISALA","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"12","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"12","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":26,"fecha_insp":"","responsable":""},"galvez-trf1-rst":{"set":"Gálvez","trafo":"TRF1","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"cKLTM 1537-10","ns":"359111","mon_modelo":"QUALITROL ITM509-00048734","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"CEDASPE","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"6","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":27,"fecha_insp":"","responsable":""},"galvez-trf2-rst":{"set":"Gálvez","trafo":"TRF2","tension":"60/10","polo":"RST","marca":"ABB","tipo":"TD2LF","ns":"L30230","mon_modelo":"QUALITROL ITM509-00409064","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"AKM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"COMEM eSDB10C","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"COMEM eSDB14C","tq_estado":"","reg_modelo":"MR TAPCON 230 expert","reg_estado":"","dga_modelo":"","dga_estado":"","sec_modelo":"","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"18","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":28,"fecha_insp":"","responsable":""},"galvez-trf3-rst":{"set":"Gálvez","trafo":"TRF3","tension":"60/10","polo":"RST","marca":"DELCROSA","tipo":"TRFKadh","ns":"B615152","mon_modelo":"-","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"COMEM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"COMEM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"AKM","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO DB100RM-T","tq_estado":"","reg_modelo":"MR TAPCON 230 expert","reg_estado":"","dga_modelo":"","dga_estado":"","sec_modelo":"","sec_estado":"","vent_cant":"4","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"Inhibido el disparo por °T de AT","orden":29,"fecha_insp":"","responsable":""},"san-isidro-trf1-rst":{"set":"San Isidro","trafo":"TRF1","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"cKLTM 1537-10","ns":"359110","mon_modelo":"QUALITROL ITM509-00048734","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"CEDASPE","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"12","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":30,"fecha_insp":"","responsable":""},"san-isidro-trf2-rst":{"set":"San Isidro","trafo":"TRF2","tension":"60/10","polo":"RST","marca":"DELCROSA","tipo":"TOCH","ns":"123151T","mon_modelo":"-","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"ABB COMEM OTI-F 0/150 °C","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"ABB COMEM WTI-F C4 5A 0/150","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"ABB COMEM WTI-ES 5A 0/150","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO DB100RM","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO DB100RM-T","tq_estado":"","reg_modelo":"MR TAPCON 230 expert","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"12","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"12","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"Inhibido la compensación °T AT y BT","orden":31,"fecha_insp":"","responsable":""},"san-isidro-trf3-rst":{"set":"San Isidro","trafo":"TRF3","tension":"60/22.9/10","polo":"RST","marca":"ABB","tipo":"TD3LF","ns":"760045-01","mon_modelo":"QUALITROL IED509-0002657","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"-","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"-","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"COMEM EM3DB","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"COMEM EM4DB","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"7","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"6","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":32,"fecha_insp":"","responsable":""},"limatambo-trf1-rst":{"set":"Limatambo","trafo":"TRF1","tension":"60/10","polo":"RST","marca":"DELCROSA","tipo":"TOCH","ns":"146659 T2","mon_modelo":"QUALITROL ITM509-00229314","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"COMEM Fuera de servicio 28/01/2024","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"COMEM Fuera de servicio 28/01/2024","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"COMEM Fuera de servicio 28/01/2024","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Electrónico","oltc_modelo":"MR MESSKO DB100","oltc_estado":"","tq_tipo":"Electrónico","tq_modelo":"MR MESSKO DB100-T","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":33,"fecha_insp":"","responsable":""},"limatambo-trf2-rst":{"set":"Limatambo","trafo":"TRF2","tension":"60/22.9/10","polo":"RST","marca":"ABB","tipo":"TD3LF","ns":"77008-01","mon_modelo":"QUALITROL IED509-00028962","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"-","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"-","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"COMEM EM3DB","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"INDURAS S-109","tq_estado":"","reg_modelo":"MR TAPCON 230 expert","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"7","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"6","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":34,"fecha_insp":"","responsable":""},"limatambo-trf3-rst":{"set":"Limatambo","trafo":"TRF3","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"cKLTM 1537-10","ns":"364075","mon_modelo":"QUALITROL ITM509-00048734","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"CEDASPE","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"6","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":35,"fecha_insp":"","responsable":""},"salamanca-trf1-rst":{"set":"Salamanca","trafo":"TRF1","tension":"60/10","polo":"RST","marca":"SIEMENS","tipo":"cKLTM 1537-10","ns":"364077","mon_modelo":"QUALITROL ITM509-00048734","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"QUALITROL 104-408-01 CS-43824","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"QUALITROL 104-401-01  CS-43825","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"QUALITROL 104-401-01  CS-43825","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"CEDASPE","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"CEDASPE","tq_estado":"","reg_modelo":"MR TAPCON 240","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"12","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"7","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":36,"fecha_insp":"","responsable":""},"salamanca-trf2-rst":{"set":"Salamanca","trafo":"TRF2","tension":"60/10","polo":"RST","marca":"ABB","tipo":"TD2LF","ns":"LP000584","mon_modelo":"TREE TECH TM1","mon_estado":"","mon_aceite_lec":"","mon_aceite_et1":"","mon_aceite_et2":"","mon_aceite_ext":"","mon_aceite_ala":"","mon_aceite_dis":"","mon_at_lec":"","mon_at_car":"","mon_at_et1":"","mon_at_et2":"","mon_at_ext":"","mon_at_ala":"","mon_at_dis":"","mon_mt_lec":"","mon_mt_car":"","mon_mt_et1":"","mon_mt_et2":"","mon_mt_ext":"","mon_mt_ala":"","mon_mt_dis":"","mon_bt_lec":"","mon_bt_car":"","mon_bt_et1":"","mon_bt_et2":"","mon_bt_ext":"","mon_bt_ala":"","mon_bt_dis":"","an_aceite_modelo":"AKM","an_aceite_estado":"","an_aceite_lec":"","an_aceite_car":"","an_aceite_et1":"","an_aceite_et2":"","an_aceite_ext":"","an_aceite_ala":"","an_aceite_dis":"","an_at_modelo":"AKM","an_at_estado":"","an_at_lec":"","an_at_car":"","an_at_et1":"","an_at_et2":"","an_at_ext":"","an_at_ala":"","an_at_dis":"","an_mt_modelo":"","an_mt_estado":"","an_mt_lec":"","an_mt_car":"","an_mt_et1":"","an_mt_et2":"","an_mt_ext":"","an_mt_ala":"","an_mt_dis":"","an_bt_modelo":"-","an_bt_estado":"","an_bt_lec":"","an_bt_car":"","an_bt_et1":"","an_bt_et2":"","an_bt_ext":"","an_bt_ala":"","an_bt_dis":"","oltc_tipo":"Convencional","oltc_modelo":"COMEM EM3DB","oltc_estado":"","tq_tipo":"Convencional","tq_modelo":"-","tq_estado":"","reg_modelo":"MR TAPCON","reg_estado":"","dga_modelo":"-","dga_estado":"","sec_modelo":"-","sec_estado":"","vent_cant":"8","vent_res":"","vent_ok":"","vent_crit":"","vent_obs":"","rad_cant":"8","rad_ok":"","rad_crit":"","rad_obs":"","comentarios":"","orden":37,"fecha_insp":"","responsable":""}};
+const STORE_KEY = "ctp_transformadores_v1";
+function persist(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(Object.fromEntries(S.items))); return true; }
+  catch(e){ toast("No se pudo guardar en este navegador. Exporta a Excel para no perder cambios."); return false; }
+}
+function loadStore(){
+  try{ const raw = localStorage.getItem(STORE_KEY); if (raw){ const o = JSON.parse(raw); if (o && typeof o==="object") return o; } }catch(e){}
+  return JSON.parse(JSON.stringify(SEED));
+}
+S.db = { collection: () => ({ doc: id => ({
+  set: async d => { S.items.set(id, JSON.parse(JSON.stringify(d))); persist(); },
+  delete: async () => { S.items.delete(id); persist(); }
+}) }) };
+
+/* ---------- importar Excel ---------- */
+const HEAD2KEY = Object.fromEntries(ALLCOLS.map(([k,h])=>[h.trim().toLowerCase(), k]));
+async function importXlsx(file){
+  try{
+    await loadLib("xlsx");
+    const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+    const sheet = wb.Sheets["Hoja2"] || wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:""});
+    if (!rows.length) throw new Error("vacío");
+    const head = rows[0].map(h=>String(h).trim().toLowerCase());
+    const keys = head.map(h=>HEAD2KEY[h]);
+    if (!keys.includes("set") || !keys.includes("trafo")){ toast("El archivo no tiene las columnas esperadas (Title, Transformador…)."); return; }
+    const m = new Map(); let orden = 0;
+    for (const r of rows.slice(1)){
+      if (r.every(v=>String(v).trim()==="")) continue;
+      const d = Object.fromEntries(ALLCOLS.map(c=>[c[0],""]));
+      keys.forEach((k,i)=>{ if (k) d[k] = String(r[i] ?? "").replace(/\s*\n\s*/g," ").trim(); });
+      d.orden = ++orden;
+      let id = slug(`${d.set}-${d.trafo}-${d.polo||"x"}`) || ("u-"+orden);
+      while (m.has(id)) id += "-b";
+      m.set(id, d);
+    }
+    S.items = m; S.sel = m.size ? sorted()[0][0] : null; S.editing=false; S.draft=null;
+    persist(); renderAll(); toast(`Importadas ${m.size} unidades desde ${file.name}`);
+  }catch(e){ toast("No se pudo leer el archivo Excel."); }
+}
+$("btnImport").addEventListener("click", ()=>$("fileImport").click());
+$("fileImport").addEventListener("change", e=>{ const f=e.target.files[0]; if (f) importXlsx(f); e.target.value=""; });
+
+/* ---------- inicio ---------- */
+(function boot(){
+  const data = loadStore();
+  S.items = new Map(Object.entries(data));
+  S.dbState = "ready"; S.canWrite = true;
+  $("btnNew").hidden = false;
+  if (S.items.size) S.sel = sorted()[0][0];
+  renderAll();
+})();
+</script>
+</body>
+</html>
